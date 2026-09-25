@@ -57,6 +57,47 @@ pipeline {
     }
 
     post {
+
+        success {
+            emailext(
+                subject: "SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+Hello,
+
+The Jenkins build was successful.
+
+Job: ${env.JOB_NAME}
+Build Number: #${env.BUILD_NUMBER}
+
+All tests passed and the Streamlit application health check succeeded.
+
+Build URL:
+${env.BUILD_URL}
+""",
+                to: "maniyarabutalha00@gmail.com"
+            )
+        }
+
+        failure {
+            emailext(
+                subject: "FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+Hello,
+
+The Jenkins build has failed.
+
+Job: ${env.JOB_NAME}
+Build Number: #${env.BUILD_NUMBER}
+
+Please check the Jenkins console output for details.
+
+Build URL:
+${env.BUILD_URL}
+""",
+                to: "maniyarabutalha00@gmail.com"
+            )
+        }
+
         always {
             sh '''
                 if [ -f streamlit.pid ]; then
