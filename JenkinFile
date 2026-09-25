@@ -1,0 +1,71 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Setup Environment') {
+            steps {
+                sh '''
+                    python3 -m venv jenkins-venv
+                    . jenkins-venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                    pip install pytest
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh '''
+                    . jenkins-venv/bin/activate
+                    pytest -v
+                '''
+            }
+        }
+
+        stage('Start Application') {
+            steps {
+                sh '''
+                    . jenkins-venv/bin/activate
+
+                    nohup streamlit run app.py \
+                        --server.port 8501 \
+                        --server.address 127.0.0.1 \
+                        > streamlit.log 2>&1 &
+
+                    echo $! > streamlit.pid
+
+                    sleep 10
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                    curl --fail http://127.0.0.1:8501/_stcore/health
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            sh '''
+                if [ -f streamlit.pid ]; then
+                    kill $(cat streamlit.pid) || true
+                fi
+            '''
+
+            archiveArtifacts artifacts: 'streamlit.log',
+                             allowEmptyArchive: true
+        }
+    }
+}
